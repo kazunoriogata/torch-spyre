@@ -196,17 +196,13 @@ void SpyreStream::copyAsyncImpl(void* cpu_ptr,
 
   // Create and launch operation through SpyreStream's typed launch methods.
   if (host2device) {
-    auto* params =
-        flex::createDmaParams(cpu_ptr, device_address->total_size(),
-                              host2device, device_address, std::move(dci_ptr));
-    launchH2D(params);
-    flex::destroyDmaParams(params);
+    flex::DmaParams params(cpu_ptr, host2device, device_address,
+                           std::move(dci_ptr));
+    launchH2D(&params);
   } else {
-    auto* params =
-        flex::createDmaParams(cpu_ptr, device_address->total_size(),
-                              host2device, device_address, std::move(dci_ptr));
-    launchD2H(params);
-    flex::destroyDmaParams(params);
+    flex::DmaParams params(cpu_ptr, host2device, device_address,
+                           std::move(dci_ptr));
+    launchD2H(&params);
   }
 }
 
@@ -227,6 +223,9 @@ void SpyreStream::executeProgramAsync(
       &ctx->composite_addr, std::move(tensor_allocs), arts.bundle_mlir_path);
   launchCompute(params);
   flex::destroyComputeParams(params);
+}
+
+  launchCompute(&params);
 }
 
 void SpyreStream::launchH2D(flex::DmaParams* params) const {
