@@ -30,7 +30,6 @@ import sys
 import os
 import regex as re
 
-import pytest
 import torch
 import unittest
 from unittest.mock import patch as mock_patch
