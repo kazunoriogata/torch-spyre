@@ -281,16 +281,10 @@ def _maybe_chunk_large_tensors(graph: GraphLowering) -> None:
     coarse_tile,
 )
 def _maybe_coarse_tile(graph: GraphLowering) -> None:
-    groups = []
     if not config.ignore_wsr_hints:
-        reorder_unhinted_interlopers(graph)
-        groups += hints_to_coarse_tile_groups(graph)
-    if not config.ignore_span_overflow_hints:
-        groups += span_overflow_groups(graph)
-    if groups:
-        op_order = {id(op): idx for idx, op in enumerate(graph.operations)}
-        groups.sort(key=lambda group: op_order.get(id(group[0][0]), len(op_order)))
-        coarse_tile(graph, groups=groups)
+        groups = hints_to_coarse_tile_groups(graph)
+        if groups:
+            coarse_tile(graph, groups=groups)
 
 
 @_runs(cost_model_matmul_division, work_distribution)
