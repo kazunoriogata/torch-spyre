@@ -69,6 +69,7 @@ package-dir = { torch_spyre = "torch_spyre" }
 package-data = { torch_spyre = ["*.dll", "*.dylib", "*.so"] }
 
 [tool.setuptools.packages.find]
+# "extensions/" is excluded by MANIFEST.in to isolate torch-spyre and extension projects
 exclude = ["tests"]  # exclude packages matching these glob patterns (empty by default)
 
 [tool.setuptools.dynamic]
@@ -77,10 +78,13 @@ readme = {file = ["README.rst", "USAGE.rst"]}
 
 [tool.ruff]
 line-length = 88
+# Always exclude "extensions" to isolate torch-spyre and extension projects
+exclude = ["extensions"]
 
 [tool.mypy]
 ignore_missing_imports = true
-exclude=["tests/inductor"]
+# Always exclude "extensions" to isolate torch-spyre and extension projects
+exclude=["tests/inductor", "extensions"]
 
 [[tool.mypy.overrides]]
 module = ["torch_spyre._inductor.*"]
@@ -116,3 +120,6 @@ explicit = true
 
 [tool.uv.pip]
 universal = true
+
+[tool.uv.build-backend]
+source-exclude = ["extensions"]
