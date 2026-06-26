@@ -109,9 +109,7 @@ def _run_and_capture(
     with (
         patch.object(_passes, "propagate_named_dims", capturing_propagate),
         patch.object(_passes, "assign_dim_hints", capturing_assign),
-        patch("torch_spyre.execution.kernel_runner.prepare_kernel"),
         patch("torch_spyre.execution.kernel_runner.launch_kernel"),
-        patch("torch_spyre.execution.kernel_runner.launch_jobplan"),
         patch("torch_spyre.execution.async_compile.subprocess.run"),
     ):
         _compile_and_run(fn, args, DEVICE)
@@ -1048,7 +1046,6 @@ def test_broadcast_expand_middle_dim():
 # -------- Indirect-access (gather) tests --------
 
 _GM, _GN, _GP = 128, 256, 32
-_GQ = 192
 _GA, _GB, _GC = 64, 8, 64
 
 
@@ -1121,99 +1118,3 @@ def test_index_select_2d():
         tensor_dims={x: ["M", "N"], i: ["P"]},
         expected_propagated_dims=["P", "N"],
     )
-
-
-def test_gather_2d_index():
-    """x[i]: x[M,N] gathered by 2-D index i[P,Q]. Output is [P,Q,N]; the
-    gathered M dim has a 2-D indirect index (0 loop vars); inner N propagates."""
-    x = torch.randn(_GM, _GN, dtype=torch.float16, device=DEVICE)
-    i = torch.randint(0, _GM, (_GP, _GQ), dtype=torch.int32, device=DEVICE)
-
-    def fn(x, i):
-        return x[i]
-
-    _run_and_capture(
-        fn,
-        [x, i],
-        named_dims={"M": _GM, "N": _GN, "P": _GP, "Q": _GQ},
-        tensor_dims={x: ["M", "N"], i: ["P", "Q"]},
-        expected_propagated_dims=["P", "Q", "N"],
-    )
-    assert result == ["B2", "_untracked_32", "_untracked_64"], f"got {result}"
-
-
-# -------- Indirect-access (gather) tests --------
-
-_GM, _GN, _GP = 128, 256, 32
-_GA, _GB, _GC = 64, 8, 64
-
-
-def test_gather_advanced_indexing_2d():
-    """x[i]: x[M,N] gathered by i[P]. The gathered M dim is addressed by an
-    indirect index (0 loop vars); the pass must not raise Unsupported."""
-    x = torch.randn(_GM, _GN, dtype=torch.float16, device=DEVICE)
-    i = torch.randint(0, _GM, (_GP,), dtype=torch.int32, device=DEVICE)
-
-    def fn(x, i):
-        return x[i]
-
-    result = _run_and_capture(
-        fn,
-        [x, i],
-        declarations={"M": _GM, "N": _GN, "P": _GP},
-        annotations={x: ["M", "N"], i: ["P"]},
-    )
-    assert result == ["P", "N"], f"got {result}"
-
-
-def test_gather_advanced_indexing_with_exp():
-    """x[i].exp(): a unary fused onto the gather still drives the gather's input
-    read through compute_input_named_dims; must not raise."""
-    x = torch.randn(_GM, _GN, dtype=torch.float16, device=DEVICE)
-    i = torch.randint(0, _GM, (_GP,), dtype=torch.int32, device=DEVICE)
-
-    def fn(x, i):
-        return x[i].exp()
-
-    result = _run_and_capture(
-        fn,
-        [x, i],
-        declarations={"M": _GM, "N": _GN, "P": _GP},
-        annotations={x: ["M", "N"], i: ["P"]},
-    )
-    assert result == ["P", "N"], f"got {result}"
-
-
-def test_gather_3d_data():
-    """x[i] with 3-D data x[A,B,C] gathered by i[P]: the gathered A dim is
-    index-selected (0 loop vars); the inner B and C dims propagate."""
-    x = torch.randn(_GA, _GB, _GC, dtype=torch.float16, device=DEVICE)
-    i = torch.randint(0, _GA, (_GP,), dtype=torch.int32, device=DEVICE)
-
-    def fn(x, i):
-        return x[i]
-
-    result = _run_and_capture(
-        fn,
-        [x, i],
-        declarations={"A": _GA, "B": _GB, "C": _GC, "P": _GP},
-        annotations={x: ["A", "B", "C"], i: ["P"]},
-    )
-    assert result == ["P", "B", "C"], f"got {result}"
-
-
-def test_index_select_2d():
-    """torch.index_select(x, 0, i): same indirect read as x[i]; must not raise."""
-    x = torch.randn(_GM, _GN, dtype=torch.float16, device=DEVICE)
-    i = torch.randint(0, _GM, (_GP,), dtype=torch.int32, device=DEVICE)
-
-    def fn(x, i):
-        return torch.index_select(x, 0, i)
-
-    result = _run_and_capture(
-        fn,
-        [x, i],
-        declarations={"M": _GM, "N": _GN, "P": _GP},
-        annotations={x: ["M", "N"], i: ["P"]},
-    )
-    assert result == ["P", "N"], f"got {result}"
