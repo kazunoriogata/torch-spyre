@@ -125,8 +125,10 @@ class ValueType:
         return f"{self.__class__.__name__}({self.name})"
 
     def __repr__(self) -> str:
-        return (f"{self.__class__.__name__}: {self.name}: scale={self.scale}, "
-                f"type={self.python_type}, id={self.id}, desc={self.long_name}")
+        return (
+            f"{self.__class__.__name__}: {self.name}: scale={self.scale}, "
+            f"type={self.python_type}, id={self.id}, desc={self.long_name}"
+        )
 
 
 @dataclass(frozen=True)
@@ -187,8 +189,10 @@ class SummarizerType:
         return f"{self.__class__.__name__}({self.name})"
 
     def __repr__(self) -> str:
-        return (f"{self.__class__.__name__}: {self.name}: id={self.id}, "
-                f"summarizer={repr(self.summarizer)}, desc={self.long_name}")
+        return (
+            f"{self.__class__.__name__}: {self.name}: id={self.id}, "
+            f"summarizer={repr(self.summarizer)}, desc={self.long_name}"
+        )
 
 
 @dataclass(frozen=True)
