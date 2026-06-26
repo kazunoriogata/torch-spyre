@@ -26,7 +26,7 @@ except ImportError as e:
     # For debug
     print("Debug: Failed to import pre-converted config file. Fall back to load from JSON file", file=sys.stderr)
     # print_tb(e.__traceback__, file=sys.stderr)
-    #print_exception(e, file=sys.stderr)
+    print_exception(e, file=sys.stderr)
 
     """
     Load the config json file into a global map, so that SectionType etc. objects can be singleton

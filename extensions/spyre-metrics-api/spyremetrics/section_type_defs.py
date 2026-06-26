@@ -253,10 +253,10 @@ class MetricDataType:
 ### Helper functions to add or look up the global config map
 # Note: map[0] is "invalid" entry
 def _lookup_by_id[T: SectionType|ValueType|SummarizerType|MetricDataType](map: dict[int,T], _id: int) -> T:
-    if not map: raise ValueError(f"Type singleton map is not initialized yet")
+    if not map: raise ValueError("Type singleton map is not initialized yet")
     return map.get(_id, map[0])
 def _lookup_by_name[T: SectionType|ValueType|SummarizerType|MetricDataType](map: dict[str,T], name: str) -> T:
-    if not map: raise ValueError(f"Type singleton map is not initialized yet")
+    if not map: raise ValueError("Type singleton map is not initialized yet")
     return map.get(name, map['invalid'])
 
 def _add_mapping_by_id[T: SectionType|ValueType|SummarizerType|MetricDataType](dst: dict[int,T], src: dict[int,T]) -> None:

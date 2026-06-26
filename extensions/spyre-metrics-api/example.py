@@ -43,7 +43,7 @@ def main() -> None:
     if len(sys.argv) >= 3 and bool(sys.argv[2]):
         try:
             interval = int(sys.argv[2])  ## when 2nd arg is an integer
-        except:
+        except ValueError:
             ## when 2nd arg is not an integer
             show_detail = True
             host_metrics = not(sys.argv[2].lower().startswith(('n', 'f', '0', '-')))
@@ -69,7 +69,7 @@ def main() -> None:
                     print(f"  Data word count: {section.len}")
 
                     # Iterate through all metric data in the file
-                    print(f"  Metrics:")
+                    print("  Metrics:")
                     for i, (metric, val) in enumerate(section.items()):
                         print(f"    [{i:#2d}]: {hex(int(val))} ({val}) {str(metric)}")
 
@@ -83,7 +83,7 @@ def main() -> None:
                 mf.set_filters(['pwr', 'tempr', 'rdmem', 'wrmem', 'avgmem', 'peakmem'])
                 print(f"Metric file #{i}: {mf.path} ({mf.nsections} sections)")
             print()
-            print(f"ID  Timestamp           pwr   tempr rdmem  wrmem  avgmem peakmem")
+            print("ID  Timestamp           pwr   tempr rdmem  wrmem  avgmem peakmem")
             while True:
                 for i, mf in enumerate(metric_file_list):
                     pwr = tempr = rdmem = wrmem = avgmem = peakmem = 0.0
