@@ -30,6 +30,7 @@ Section header format (64bit aligned):
 - Metric data #1 (array of 64bit)
 - ...
 """
+
 import numpy as np
 import os
 import psutil
@@ -54,22 +55,40 @@ except ImportError as e:
     raise RuntimeError from e
 
 # Begin
-SUPPORTED_FORMAT_VERSION_UPPER = [ 1, 0, 255, 255 ]
-SUPPORTED_FORMAT_VERSION_LOWER = [ 1, 0,   0,   0 ]
+SUPPORTED_FORMAT_VERSION_UPPER = [1, 0, 255, 255]
+SUPPORTED_FORMAT_VERSION_LOWER = [1, 0, 0, 0]
 
-FILE_HEADER_DTYPE = np.dtype([('magic', 'u1', 4), ('size', 'u4'), ('version', 'u1', 4), ('nsections', 'u4'),
-                             ('timestamp', 'u8'), ('reserved', 'u8')])
+FILE_HEADER_DTYPE = np.dtype(
+    [
+        ("magic", "u1", 4),
+        ("size", "u4"),
+        ("version", "u1", 4),
+        ("nsections", "u4"),
+        ("timestamp", "u8"),
+        ("reserved", "u8"),
+    ]
+)
 
-SECTION_HEADER_DTYPE = np.dtype([('typeid', 'u4'), ('size', 'u4'), ('seqnum', 'u4'), ('ndata', 'u4'),
-                                ('timestamp', 'u8'), ('interval', 'u4'), ('reserved', 'u4')])
+SECTION_HEADER_DTYPE = np.dtype(
+    [
+        ("typeid", "u4"),
+        ("size", "u4"),
+        ("seqnum", "u4"),
+        ("ndata", "u4"),
+        ("timestamp", "u8"),
+        ("interval", "u4"),
+        ("reserved", "u4"),
+    ]
+)
 
-TABLE_ENTRY_DTYPE = np.dtype([('id', 'u4'), ('size', 'u4')])
+TABLE_ENTRY_DTYPE = np.dtype([("id", "u4"), ("size", "u4")])
 
-MAGIC_BYTES = 'AiuM'
-MAGIC_UPDATING = '!'
+MAGIC_BYTES = "AiuM"
+MAGIC_UPDATING = "!"
 FILE_HEADER_MIN_SIZE = 32
 
-MAGIC_BUSID = '%BUSID'
+MAGIC_BUSID = "%BUSID"
+
 
 @unique
 class MetricFileFormat(IntEnum):
@@ -78,9 +97,11 @@ class MetricFileFormat(IntEnum):
 
     UNKNOWN is the value when the metric file is not create yet.
     """
+
     UNKNOWN = 0
-    OLD     = 1
-    NEW     = 2
+    OLD = 1
+    NEW = 2
+
 
 @dataclass(frozen=True)
 class MetricFetcher:
@@ -89,14 +110,18 @@ class MetricFetcher:
     It holds the offset from the beginning of the file, so that it can directry load the data
     without walking through the file and section headers.
     """
+
     data_type: MetricDataType
-    index: int                   # uint64 index of this data from the beginning of memmap array
+    index: int  # uint64 index of this data from the beginning of memmap array
     len: int = field(default=1)
 
-    def fetch_detail(self, mmap: np_memmap) -> list[int|float]:
-        return [ self.data_type.value_type.adjust(mmap[self.index + i]) for i in range(self.len)]
+    def fetch_detail(self, mmap: np_memmap) -> list[int | float]:
+        return [
+            self.data_type.value_type.adjust(mmap[self.index + i])
+            for i in range(self.len)
+        ]
 
-    def fetch(self, mmap: np_memmap) -> int|float:
+    def fetch(self, mmap: np_memmap) -> int | float:
         return self.data_type.summarizer_type.summarizer(self.fetch_detail(mmap))
 
     def __str__(self) -> str:
@@ -108,22 +133,29 @@ class HostMetricFetcher(MetricFetcher):
     """
     Pseudo MetricFetcher to get host metrics and returns the values as if it is loaded from a metric file.
     """
-    @override
-    def fetch_detail(self, mmap: np_memmap) -> list[int|float]:
-        match self.data_type.name:
-            case 'hostcpu':  val = sum(psutil.cpu_percent(percpu=True))
-            case 'hostmem':  val = psutil.virtual_memory().percent
-            case _:          val = 0
-        return [ self.data_type.value_type.adjust(val) ]
 
     @override
-    def fetch(self, mmap: np_memmap) -> int|float:
+    def fetch_detail(self, mmap: np_memmap) -> list[int | float]:
+        match self.data_type.name:
+            case "hostcpu":
+                val = sum(psutil.cpu_percent(percpu=True))
+            case "hostmem":
+                val = psutil.virtual_memory().percent
+            case _:
+                val = 0
+        return [self.data_type.value_type.adjust(val)]
+
+    @override
+    def fetch(self, mmap: np_memmap) -> int | float:
         return self.data_type.summarizer_type.summarizer(self.fetch_detail(mmap))
 
     @classmethod
     def fetchers(cls) -> list[MetricFetcher]:
-        return [ HostMetricFetcher(MetricDataType.find_by_name('hostcpu'), index=0, len=0),
-                 HostMetricFetcher(MetricDataType.find_by_name('hostmem'), index=0, len=0) ]
+        return [
+            HostMetricFetcher(MetricDataType.find_by_name("hostcpu"), index=0, len=0),
+            HostMetricFetcher(MetricDataType.find_by_name("hostmem"), index=0, len=0),
+        ]
+
 
 @dataclass
 class SectionHeader:
@@ -132,21 +164,26 @@ class SectionHeader:
 
     Use a static method try_parse_header() to create an instance from the section header in a metric file.
     """
+
     section_type: SectionType
-    section_size: int        # BYte size of this section
-    header_size: int         # Byte size of the section header including the metric data table
+    section_size: int  # BYte size of this section
+    header_size: int  # Byte size of the section header including the metric data table
     seqnum: int
     interval: int
-    last_update: datetime    # Last modified time of the file
+    last_update: datetime  # Last modified time of the file
     data_table: list[tuple[int, int]]  # metric data table
     valid: bool = field(default=True)
 
     def __post_init__(self) -> None:
-        self.nmetrics: int = len(self.data_table)  # Number of metric types in this section
-        self.nwords: int = sum([ x[1] for x in self.data_table ], 0)
+        self.nmetrics: int = len(
+            self.data_table
+        )  # Number of metric types in this section
+        self.nwords: int = sum([x[1] for x in self.data_table], 0)
 
     @classmethod
-    def try_parse_header(cls, expect_type: SectionType, mmap: np_memmap, start_offset: int) -> 'SectionHeader':
+    def try_parse_header(
+        cls, expect_type: SectionType, mmap: np_memmap, start_offset: int
+    ) -> "SectionHeader":
         """Parse file header from bytes.
 
         Args:
@@ -160,30 +197,56 @@ class SectionHeader:
         # Assuming file header format: nsections (uint32) + padding
         # Adjust struct format based on actual binary format
 
-        header = np.recarray(shape=1, buf=mmap, offset=start_offset, dtype=SECTION_HEADER_DTYPE, aligned=False)[0]
+        header = np.recarray(
+            shape=1,
+            buf=mmap,
+            offset=start_offset,
+            dtype=SECTION_HEADER_DTYPE,
+            aligned=False,
+        )[0]
 
-        typeid = header['typeid']
-        size = header['size']
-        seqnum = header['seqnum']
-        ndata = header['ndata']
-        timestamp = datetime.fromtimestamp(header['timestamp'] / 1000.0)
-        interval = header['interval']
+        typeid = header["typeid"]
+        size = header["size"]
+        seqnum = header["seqnum"]
+        ndata = header["ndata"]
+        timestamp = datetime.fromtimestamp(header["timestamp"] / 1000.0)
+        interval = header["interval"]
 
-        dat_tbl = np.recarray(shape=ndata, buf=mmap, offset = start_offset + header.nbytes,
-                              dtype=TABLE_ENTRY_DTYPE, aligned=False)
+        dat_tbl = np.recarray(
+            shape=ndata,
+            buf=mmap,
+            offset=start_offset + header.nbytes,
+            dtype=TABLE_ENTRY_DTYPE,
+            aligned=False,
+        )
         header_size = header.nbytes + dat_tbl.nbytes
         data_table = dat_tbl.tolist()
 
         section_type = SectionType.find_by_id(typeid)
 
-        return cls(section_type=section_type, section_size=size, header_size=header_size, seqnum=seqnum, interval=interval,
-                   last_update=timestamp, data_table=data_table, valid=(section_type == expect_type))
+        return cls(
+            section_type=section_type,
+            section_size=size,
+            header_size=header_size,
+            seqnum=seqnum,
+            interval=interval,
+            last_update=timestamp,
+            data_table=data_table,
+            valid=(section_type == expect_type),
+        )
+
 
 class MetricSection:
     """Represents a section in the metric file with an iterator for data words."""
 
-    def __init__(self, section_type: SectionType, mmap: np_memmap, section_offset: int, 
-                 section_header: Optional[SectionHeader] = None, fetchers: Optional[list[MetricFetcher]] = None):
+    def __init__(
+        self,
+        section_type: SectionType,
+        mmap: np_memmap,
+        section_offset: int,
+        section_header: Optional[SectionHeader] = None,
+        fetchers: Optional[list[MetricFetcher]] = None,
+    ):
         """Initialize a metric section.
 
         Args:
@@ -196,12 +259,16 @@ class MetricSection:
         self._section_offset: int = section_offset
         # Calculate word offset (divide byte offset by 8 for uint64)
         self._header: SectionHeader = (
-            section_header if section_header
-                           else SectionHeader.try_parse_header(expect_type=section_type, mmap=mmap,
-                                                               start_offset=section_offset))
+            section_header
+            if section_header
+            else SectionHeader.try_parse_header(
+                expect_type=section_type, mmap=mmap, start_offset=section_offset
+            )
+        )
         self._data_start_index = (section_offset + self._header.header_size) // 8
-        self._metric_fetchers: list[MetricFetcher] = fetchers if fetchers else self._build_fetchers()
-
+        self._metric_fetchers: list[MetricFetcher] = (
+            fetchers if fetchers else self._build_fetchers()
+        )
 
     def _build_fetchers(self) -> list[MetricFetcher]:
         """
@@ -210,7 +277,7 @@ class MetricSection:
 
         Default is all avialable data types in this section.
         """
-        f_list:list[MetricFetcher] = []
+        f_list: list[MetricFetcher] = []
         index = self._data_start_index
         for id, len in self._header.data_table:
             dtype = MetricDataType.find_by_id(id)
@@ -222,17 +289,29 @@ class MetricSection:
         return f_list
 
     @classmethod
-    def _create_host_metric_section(cls, mmap: np_memmap) -> 'MetricSection':
+    def _create_host_metric_section(cls, mmap: np_memmap) -> "MetricSection":
         """
         Create a pseudo section for host metrics when the metrics are not stored in metric files and expected
         to be generated by this Python API.
         """
-        fetchers:list[MetricFetcher] = HostMetricFetcher.fetchers()
+        fetchers: list[MetricFetcher] = HostMetricFetcher.fetchers()
         sec_type = fetchers[0].data_type.section_type
-        header = SectionHeader(section_type=sec_type, section_size=0, header_size=0, seqnum=1, interval=100,
-                               last_update=datetime.now(), data_table=[(0,0)])
-        return MetricSection(section_type=sec_type, mmap=mmap, section_offset=0,
-                             section_header=header, fetchers=fetchers)
+        header = SectionHeader(
+            section_type=sec_type,
+            section_size=0,
+            header_size=0,
+            seqnum=1,
+            interval=100,
+            last_update=datetime.now(),
+            data_table=[(0, 0)],
+        )
+        return MetricSection(
+            section_type=sec_type,
+            mmap=mmap,
+            section_offset=0,
+            section_header=header,
+            fetchers=fetchers,
+        )
 
     @property
     def type(self) -> SectionType:
@@ -261,9 +340,9 @@ class MetricSection:
         Yields:
             MetricDataType supported in this section. Unneeded data types will be skipped if filter is set.
         """
-        return [ x.data_type for x in self._metric_fetchers ]
+        return [x.data_type for x in self._metric_fetchers]
 
-    def items(self) -> Iterable[tuple[MetricDataType, int|float]]:
+    def items(self) -> Iterable[tuple[MetricDataType, int | float]]:
         """
         Read metric data in this section. Unneeded data will be skipped if filter is set.
 
@@ -273,7 +352,7 @@ class MetricSection:
         for f in self._metric_fetchers:
             yield f.data_type, f.fetch(self._mmap)
 
-    def __getitem__(self, key: MetricDataType) -> int|float | None:
+    def __getitem__(self, key: MetricDataType) -> int | float | None:
         """
         Access metric data by metric data type.
 
@@ -289,10 +368,13 @@ class MetricSection:
         return None
 
     def __str__(self) -> str:
-        return (f"{self.__class__.__name__}({self._sec_type.name}): valid={self._header.valid}, size={self._header.section_size}, "
-                f"header-size={self._header.header_size}, offset={self._section_offset}, data_start_index={self._data_start_index}\n"
-                f"    ndata={len(self._header.data_table)}, data_table={self._header.data_table}\n"
-                f"    defined-fetchers={", ".join( (str(f) for f in self._metric_fetchers) )}")
+        return (
+            f"{self.__class__.__name__}({self._sec_type.name}): valid={self._header.valid}, size={self._header.section_size}, "
+            f"header-size={self._header.header_size}, offset={self._section_offset}, data_start_index={self._data_start_index}\n"
+            f"    ndata={len(self._header.data_table)}, data_table={self._header.data_table}\n"
+            f"    defined-fetchers={', '.join((str(f) for f in self._metric_fetchers))}"
+        )
+
 
 @dataclass
 class FileHeader:
@@ -301,14 +383,17 @@ class FileHeader:
 
     Use a static method try_parse_header() to create an instance from the contents of a metric file.
     """
-    file_format: MetricFileFormat   # True if the metric file is the new format
-    version: list[int]              # version number list [ 'major', 'minor', 'rev', 'fix' ] (uint8 each)
-    header_size: int                # Byte size of the file header including the section table
-    file_size: int                  # File size
-    last_update: datetime           # Last modified time of the file
+
+    file_format: MetricFileFormat  # True if the metric file is the new format
+    version: list[
+        int
+    ]  # version number list [ 'major', 'minor', 'rev', 'fix' ] (uint8 each)
+    header_size: int  # Byte size of the file header including the section table
+    file_size: int  # File size
+    last_update: datetime  # Last modified time of the file
     section_table: list[tuple[int, int]]  # section table
-    null_file_header: ClassVar['FileHeader']
-    skip_old_header: ClassVar['FileHeader']
+    null_file_header: ClassVar["FileHeader"]
+    skip_old_header: ClassVar["FileHeader"]
 
     @property
     def is_old_format(self) -> bool:
@@ -316,7 +401,9 @@ class FileHeader:
         return self.file_format == MetricFileFormat.OLD
 
     @classmethod
-    def try_parse_header(cls, filepath: Path, mmap: np_memmap, new_format_only: bool = False) -> 'FileHeader':
+    def try_parse_header(
+        cls, filepath: Path, mmap: np_memmap, new_format_only: bool = False
+    ) -> "FileHeader":
         """Parse file header from bytes.
 
         Args:
@@ -328,49 +415,90 @@ class FileHeader:
         # Assuming file header format: nsections (uint32) + padding
         # Adjust struct format based on actual binary format
 
-        header = np.recarray(shape=1, buf=mmap, dtype=FILE_HEADER_DTYPE, aligned=False)[0]
+        header = np.recarray(shape=1, buf=mmap, dtype=FILE_HEADER_DTYPE, aligned=False)[
+            0
+        ]
         st = filepath.stat()
-        magic = header['magic']
-        if not any(magic): ## check if all bytes are 0
+        magic = header["magic"]
+        if not any(magic):  ## check if all bytes are 0
             # old format
             if new_format_only:
                 return FileHeader.skip_old_header
 
             st = filepath.stat()
-            return cls(file_format=MetricFileFormat.OLD, version=[0, 2, 1, 1], file_size=st.st_size, header_size=0,
-                       last_update=datetime.fromtimestamp(st.st_mtime), section_table=[(0,0)])
+            return cls(
+                file_format=MetricFileFormat.OLD,
+                version=[0, 2, 1, 1],
+                file_size=st.st_size,
+                header_size=0,
+                last_update=datetime.fromtimestamp(st.st_mtime),
+                section_table=[(0, 0)],
+            )
 
-        if any([ magic[i] != ord(ch) for i,ch in enumerate(MAGIC_BYTES) ]):
+        if any([magic[i] != ord(ch) for i, ch in enumerate(MAGIC_BYTES)]):
             # If magic bytes is not "AiuM", check if it is still updating header by comparing the magic byte with "!"
-            if any([ magic[i] != ord(ch) for i,ch in enumerate(MAGIC_UPDATING) ]):
+            if any([magic[i] != ord(ch) for i, ch in enumerate(MAGIC_UPDATING)]):
                 return FileHeader.null_file_header
             raise RuntimeError(f"Unexpected magic bytes: {magic}")
 
-        version = [ int(x) for x in header['version'] ]  # convert from list[np.uint8] to list[int] for comparison
-        if version > SUPPORTED_FORMAT_VERSION_UPPER or version < SUPPORTED_FORMAT_VERSION_LOWER:
-            raise RuntimeError(f"Unsupported metric file version: {'.'.join([ str(x) for x in version])}")
+        version = [
+            int(x) for x in header["version"]
+        ]  # convert from list[np.uint8] to list[int] for comparison
+        if (
+            version > SUPPORTED_FORMAT_VERSION_UPPER
+            or version < SUPPORTED_FORMAT_VERSION_LOWER
+        ):
+            raise RuntimeError(
+                f"Unsupported metric file version: {'.'.join([str(x) for x in version])}"
+            )
 
-        file_size = header['size']
-        nsections = header['nsections']
-        timestamp = datetime.fromtimestamp(header['timestamp'] / 1000.0)
+        file_size = header["size"]
+        nsections = header["nsections"]
+        timestamp = datetime.fromtimestamp(header["timestamp"] / 1000.0)
 
-        sec_tbl = np.recarray(shape=nsections, buf=mmap, offset=header.nbytes, dtype=TABLE_ENTRY_DTYPE, aligned=False)
+        sec_tbl = np.recarray(
+            shape=nsections,
+            buf=mmap,
+            offset=header.nbytes,
+            dtype=TABLE_ENTRY_DTYPE,
+            aligned=False,
+        )
         header_size = header.nbytes + sec_tbl.nbytes
         section_table = sec_tbl.tolist()
 
-        return cls(file_format=MetricFileFormat.NEW, version=version, file_size=file_size, header_size=header_size,
-                   last_update=timestamp, section_table=section_table)
+        return cls(
+            file_format=MetricFileFormat.NEW,
+            version=version,
+            file_size=file_size,
+            header_size=header_size,
+            last_update=timestamp,
+            section_table=section_table,
+        )
 
     @classmethod
     def init_null_header(cls):
         """Initalizer of static variables, as Python data classes cannot define static initalizaers."""
-        cls.null_file_header = FileHeader(file_format=MetricFileFormat.UNKNOWN, version=[0, 0, 0, 0], file_size=0, header_size=0,
-                                          last_update=datetime.fromtimestamp(0), section_table=[(0,0)])
-        cls.skip_old_header = FileHeader(file_format=MetricFileFormat.OLD, version=[0, 0, 0, 0], file_size=0, header_size=0,
-                                         last_update=datetime.fromtimestamp(0), section_table=[(0,0)])
+        cls.null_file_header = FileHeader(
+            file_format=MetricFileFormat.UNKNOWN,
+            version=[0, 0, 0, 0],
+            file_size=0,
+            header_size=0,
+            last_update=datetime.fromtimestamp(0),
+            section_table=[(0, 0)],
+        )
+        cls.skip_old_header = FileHeader(
+            file_format=MetricFileFormat.OLD,
+            version=[0, 0, 0, 0],
+            file_size=0,
+            header_size=0,
+            last_update=datetime.fromtimestamp(0),
+            section_table=[(0, 0)],
+        )
+
 
 # Initialize class variables null_file_header an skip_old_header here
 FileHeader.init_null_header()
+
 
 class MetricFile:
     """
@@ -398,17 +526,26 @@ class MetricFile:
 
         Note: Stale is unused as a file state at this moment, but it is used as the border if the metric file is OK to read
         """
-        Unknown     = 0
-        NoFile      = auto()   # No metric file exists
-        SkipOld     = auto()   # Metric file in the old format, and do not use syremetrics API
-        Stale       = auto()   # Metric file exists, but it is stale
-        Ready       = auto()   # Metric file exists and ready to read metric data
+
+        Unknown = 0
+        NoFile = auto()  # No metric file exists
+        SkipOld = (
+            auto()
+        )  # Metric file in the old format, and do not use syremetrics API
+        Stale = auto()  # Metric file exists, but it is stale
+        Ready = auto()  # Metric file exists and ready to read metric data
 
     ## Static variable for empty mmap region
-    _empty_mmap: np_memmap = np.memmap('/dev/zero', dtype=np.uint64, mode='r', shape = 1)
+    _empty_mmap: np_memmap = np.memmap("/dev/zero", dtype=np.uint64, mode="r", shape=1)
 
-    def __init__(self, filepath: Path|str, filters: Optional[list[str|int|MetricDataType]] = None, *,
-                 local_host_metrics: bool = False, new_format_only: bool = False):
+    def __init__(
+        self,
+        filepath: Path | str,
+        filters: Optional[list[str | int | MetricDataType]] = None,
+        *,
+        local_host_metrics: bool = False,
+        new_format_only: bool = False,
+    ):
         """Initialize a metric file reader.
 
         Args:
@@ -424,11 +561,15 @@ class MetricFile:
         self._file_state: MetricFile.State = MetricFile.State.Unknown
         self._local_host_metrics: bool = local_host_metrics
 
-        self._mmap: np_memmap = self._try_memmap_metric_file()  # Check if valid metric file exists, and mmap if possible
-        if self._file_state <= MetricFile.State.Stale:   # No metric file or a stale file
+        self._mmap: np_memmap = (
+            self._try_memmap_metric_file()
+        )  # Check if valid metric file exists, and mmap if possible
+        if self._file_state <= MetricFile.State.Stale:  # No metric file or a stale file
             self._file_header: FileHeader = FileHeader.null_file_header
         else:
-            self._file_header: FileHeader = FileHeader.try_parse_header(self._filepath, self._mmap, new_format_only)
+            self._file_header: FileHeader = FileHeader.try_parse_header(
+                self._filepath, self._mmap, new_format_only
+            )
             if self._file_header == FileHeader.skip_old_header:
                 self._file_state = MetricFile.State.SkipOld
             elif self._file_header == FileHeader.null_file_header:
@@ -452,14 +593,20 @@ class MetricFile:
 
         file_size = self._filepath.stat().st_size
         if file_size % 8 != 0:
-            raise RuntimeError(f"Metric file size is not a multiple of sizeof(uint64_t): {self._filepath}")
+            raise RuntimeError(
+                f"Metric file size is not a multiple of sizeof(uint64_t): {self._filepath}"
+            )
 
         if file_size < FILE_HEADER_MIN_SIZE:
-            raise RuntimeError(f"Metric file size is shorter than minimum required size={FILE_HEADER_MIN_SIZE}: "
-                               f"{self._filepath}")
+            raise RuntimeError(
+                f"Metric file size is shorter than minimum required size={FILE_HEADER_MIN_SIZE}: "
+                f"{self._filepath}"
+            )
 
         self._file_state = MetricFile.State.Ready
-        return np.memmap(self._filepath, dtype=np.uint64, mode='r', shape = file_size // 8)
+        return np.memmap(
+            self._filepath, dtype=np.uint64, mode="r", shape=file_size // 8
+        )
 
     def _ensure_metric_file(self, force_reopen: bool = False) -> bool:
         """
@@ -474,10 +621,12 @@ class MetricFile:
         else:
             self._mmap = self._try_memmap_metric_file()  # mmap if possible
 
-        if self._file_state <= MetricFile.State.Stale:   # No metric file or a stale file
+        if self._file_state <= MetricFile.State.Stale:  # No metric file or a stale file
             return False  # memmap failed
 
-        self._file_header: FileHeader = FileHeader.try_parse_header(self._filepath, self._mmap)
+        self._file_header: FileHeader = FileHeader.try_parse_header(
+            self._filepath, self._mmap
+        )
         if self._file_header == FileHeader.null_file_header:
             self._file_state = MetricFile.State.Stale
             self.close()
@@ -500,7 +649,7 @@ class MetricFile:
 
         id_set: set[int] = set()
         off = self._file_header.header_size
-        for id,size in self._file_header.section_table:
+        for id, size in self._file_header.section_table:
             sec_type = SectionType.find_by_id(id)
             if sec_type.id == 0:
                 # print(f"Skip invalid section ID: {id}", file=sys.stderr)
@@ -509,7 +658,9 @@ class MetricFile:
                 # print(f"Skip duplicated section ID: {id}={sec_type.id}", file=sys.stderr)
                 pass
             else:
-                section = MetricSection(section_type=sec_type, mmap = self._mmap, section_offset = off)
+                section = MetricSection(
+                    section_type=sec_type, mmap=self._mmap, section_offset=off
+                )
                 if section._header.valid:
                     sections.append(section)
                     id_set.add(sec_type.id)
@@ -517,8 +668,12 @@ class MetricFile:
                     print(f"Skip section marked as invalid: {id}", file=sys.stderr)
             off += size
 
-        if self._local_host_metrics and not any([ s.name == 'host_metrics' for s in sections ]):
-            sections.insert(0, MetricSection._create_host_metric_section(mmap=self._mmap))
+        if self._local_host_metrics and not any(
+            [s.name == "host_metrics" for s in sections]
+        ):
+            sections.insert(
+                0, MetricSection._create_host_metric_section(mmap=self._mmap)
+            )
 
         return sections
 
@@ -533,7 +688,7 @@ class MetricFile:
                     fetchers.append(f)
         return fetchers
 
-    def set_filters(self, filters: list[str|int|MetricDataType]) -> None:
+    def set_filters(self, filters: list[str | int | MetricDataType]) -> None:
         """
         Register a list of metric data types that are interested in the program using this API.
         This can be an optimization to filter out unneeded metric data types.
@@ -547,7 +702,7 @@ class MetricFile:
     def ready(self) -> bool:
         """True if the file is ready to read (or ready to skip if new_format_only is set and the file format is old)"""
         self._ensure_metric_file()
-        return self._file_state in ( MetricFile.State.Ready, MetricFile.State.SkipOld )
+        return self._file_state in (MetricFile.State.Ready, MetricFile.State.SkipOld)
 
     @property
     def metric_file_format(self) -> MetricFileFormat:
@@ -586,9 +741,9 @@ class MetricFile:
             MetricDataType supported by the current metric fileter.
         """
         self._ensure_metric_file()
-        yield from [ f.data_type for f in self._metric_fetchers ]
+        yield from [f.data_type for f in self._metric_fetchers]
 
-    def read_metrics(self) -> Iterable[tuple[MetricDataType, int|float]]:
+    def read_metrics(self) -> Iterable[tuple[MetricDataType, int | float]]:
         """
         Read all avialable metric data, or the set of data filtered by set_filters().
 
@@ -607,6 +762,7 @@ class MetricFile:
             # Old format: Use libaiusmi.so to read it
             try:
                 from .old_metric_file import read_old_metrics
+
                 yield from read_old_metrics(self._filepath)
             except ImportError as e:
                 ## Notify error to the caller as a RuntimeError
@@ -628,8 +784,14 @@ class MetricFile:
         yield from self._sections
 
     @classmethod
-    def open_metrics(cls, metric_file_str: str, filters: Optional[list[str|int|MetricDataType]] = None, *,
-                     local_host_metrics: bool = False, new_format_only: bool = False) -> list['MetricFile']:
+    def open_metrics(
+        cls,
+        metric_file_str: str,
+        filters: Optional[list[str | int | MetricDataType]] = None,
+        *,
+        local_host_metrics: bool = False,
+        new_format_only: bool = False,
+    ) -> list["MetricFile"]:
         """A factory method to create MetricFile, with expaning "%BUSID" magic keyword. Since "%BUSID" can be expanded to
         multiple device IDs, this method returns a list of MetricFile objects.
 
@@ -649,23 +811,29 @@ class MetricFile:
             files.append(metric_path)
         else:
             busids: list[str] = []
-            if (envStr := os.environ.get('PCIDEVICE_IBM_COM_AIU_PF')):
-                busids = envStr.split(',')
-            elif (envStr := os.environ.get('AIU_WORLD_SIZE')):
+            if envStr := os.environ.get("PCIDEVICE_IBM_COM_AIU_PF"):
+                busids = envStr.split(",")
+            elif envStr := os.environ.get("AIU_WORLD_SIZE"):
                 try:
                     world_size = int(envStr)
                 except ValueError:
-                    print("ERROR: AIU_WORLD_SIZE is set to non-integer value", file=sys.stderr)
+                    print(
+                        "ERROR: AIU_WORLD_SIZE is set to non-integer value",
+                        file=sys.stderr,
+                    )
                     return []
 
                 for rank in range(world_size):
-                    envStr = os.environ.get(f'AIU_WORLD_RANK_{rank}')
+                    envStr = os.environ.get(f"AIU_WORLD_RANK_{rank}")
                     if envStr:
                         busids.append(envStr)
                     else:
-                        busids.append(f'UNKNOWN_BUSID_RANK_{rank}')
+                        busids.append(f"UNKNOWN_BUSID_RANK_{rank}")
             else:
-                print("ERROR: AIU_WORLD_SIZE is not set and cannot get world size", file=sys.stderr)
+                print(
+                    "ERROR: AIU_WORLD_SIZE is not set and cannot get world size",
+                    file=sys.stderr,
+                )
                 return []
 
             if busids:
@@ -675,24 +843,34 @@ class MetricFile:
             else:
                 files.append(metric_path)
 
-        return [ cls(p, filters=filters, local_host_metrics=local_host_metrics, new_format_only=new_format_only) for p in files ]
+        return [
+            cls(
+                p,
+                filters=filters,
+                local_host_metrics=local_host_metrics,
+                new_format_only=new_format_only,
+            )
+            for p in files
+        ]
 
     def __str__(self) -> str:
-        return (f"{self.__class__.__name__}: file={self._filepath}, new-format={self._file_header.is_new_format}, "
-                f"version={ '.'.join( (str(v) for v in self._file_header.version) )}, state={self._file_state.name}, "
-                f"nsections={self.nsections}\n"
-                f"    header-size={self._file_header.header_size}, section-table={self._file_header.section_table}\n"
-                f"    filters={self._filters}\n"
-                f"    mmap={self._mmap.dtype} x {self._mmap.size} = {self._mmap.nbytes} bytes, {self._mmap.filename}\n"
-                f"    acrive-fetchers={', '.join( (str(f) for f in self._metric_fetchers) )}\n"
-                f"    sections:\n{'\n'.join( (str(s) for s in self._sections) )}")
+        return (
+            f"{self.__class__.__name__}: file={self._filepath}, new-format={self._file_header.is_new_format}, "
+            f"version={'.'.join((str(v) for v in self._file_header.version))}, state={self._file_state.name}, "
+            f"nsections={self.nsections}\n"
+            f"    header-size={self._file_header.header_size}, section-table={self._file_header.section_table}\n"
+            f"    filters={self._filters}\n"
+            f"    mmap={self._mmap.dtype} x {self._mmap.size} = {self._mmap.nbytes} bytes, {self._mmap.filename}\n"
+            f"    acrive-fetchers={', '.join((str(f) for f in self._metric_fetchers))}\n"
+            f"    sections:\n{'\n'.join((str(s) for s in self._sections))}"
+        )
 
     def close(self) -> None:
         """Close the memory-mapped file."""
         if self._mmap.size > 1:
             self._mmap = MetricFile._empty_mmap  # Existing mapping will be GCed
 
-    def __enter__(self) -> 'MetricFile':
+    def __enter__(self) -> "MetricFile":
         """Context manager entry."""
         return self
 
@@ -703,5 +881,6 @@ class MetricFile:
     def __del__(self) -> None:
         """Destructor to ensure memmap is cleaned up."""
         self.close()
+
 
 # Made with Bob

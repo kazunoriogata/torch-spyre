@@ -26,13 +26,14 @@ Option:
                   if host_metrics are not stored in a metric file.
 """
 
+
 def main() -> None:
     """Main function to demonstrate metric file parsing."""
     if len(sys.argv) < 2:
         print(USAGE)
         sys.exit(1)
 
-    if sys.argv[1] in ('-h', '--help', '-?'):
+    if sys.argv[1] in ("-h", "--help", "-?"):
         print(USAGE)
         sys.exit(0)
 
@@ -46,17 +47,19 @@ def main() -> None:
         except ValueError:
             ## when 2nd arg is not an integer
             show_detail = True
-            host_metrics = not(sys.argv[2].lower().startswith(('n', 'f', '0', '-')))
+            host_metrics = not (sys.argv[2].lower().startswith(("n", "f", "0", "-")))
 
     # Expand "%BUSID" magic keyword if needed and open metric files. Return a list of MetricFile objects
-    metric_file_list = MetricFile.open_metrics(sys.argv[1], local_host_metrics = host_metrics)
+    metric_file_list = MetricFile.open_metrics(
+        sys.argv[1], local_host_metrics=host_metrics
+    )
 
     try:
         if show_detail:
             for i, mf in enumerate(metric_file_list):
-#                print('-------- Debug dump of MetricFile --------', file=sys.stderr)
-#                print(str(mf), file=sys.stderr)
-#                print('------------------------------------------', file=sys.stderr)
+                #                print('-------- Debug dump of MetricFile --------', file=sys.stderr)
+                #                print(str(mf), file=sys.stderr)
+                #                print('------------------------------------------', file=sys.stderr)
 
                 print(f"Metric file #{i}: {mf.path}")
                 print(f"Number of sections: {mf.nsections}")
@@ -80,7 +83,7 @@ def main() -> None:
                 # MetricsFile.read_metrics() only returns the metrics listed in the argument.
                 # Default is to return all metrics available in the metric file.
                 # If the metric is not stored in the file, it is not included in the retrued data, of cource.
-                mf.set_filters(['pwr', 'tempr', 'rdmem', 'wrmem', 'avgmem', 'peakmem'])
+                mf.set_filters(["pwr", "tempr", "rdmem", "wrmem", "avgmem", "peakmem"])
                 print(f"Metric file #{i}: {mf.path} ({mf.nsections} sections)")
             print()
             print("ID  Timestamp           pwr   tempr rdmem  wrmem  avgmem peakmem")
@@ -90,15 +93,23 @@ def main() -> None:
                     for metric, val in mf.read_metrics():
                         # pick up interested metrics and adjust metric values to be human friendly
                         match metric.name:
-                            case 'pwr':     pwr   = val
-                            case 'tempr':   tempr = val
-                            case 'rdmem':   rdmem = val * 1.0 / 1024 / 1024  # convert to GiB
-                            case 'wrmem':   wrmem = val * 1.0 / 1024 / 1024  # convert to GiB
-                            case 'avgmem':  avgmem = val * 1.0 / 1024 / 1024  # convert to GiB
-                            case 'peakmem': peakmem = val * 1.0 / 1024 / 1024  # convert to GiB
+                            case "pwr":
+                                pwr = val
+                            case "tempr":
+                                tempr = val
+                            case "rdmem":
+                                rdmem = val * 1.0 / 1024 / 1024  # convert to GiB
+                            case "wrmem":
+                                wrmem = val * 1.0 / 1024 / 1024  # convert to GiB
+                            case "avgmem":
+                                avgmem = val * 1.0 / 1024 / 1024  # convert to GiB
+                            case "peakmem":
+                                peakmem = val * 1.0 / 1024 / 1024  # convert to GiB
 
-                    print(f"{i:>2}: {datetime.now().strftime('%Y/%m/%d %H:%M:%S')} "
-                          f"{pwr:5.1f} {tempr:5.1f} {rdmem:6.1f} {wrmem:6.1f} {avgmem:6.1f} {peakmem:6.1f}")
+                    print(
+                        f"{i:>2}: {datetime.now().strftime('%Y/%m/%d %H:%M:%S')} "
+                        f"{pwr:5.1f} {tempr:5.1f} {rdmem:6.1f} {wrmem:6.1f} {avgmem:6.1f} {peakmem:6.1f}"
+                    )
 
                 if interval < 1:
                     break
@@ -107,12 +118,12 @@ def main() -> None:
 
     except RuntimeError as e:
         print(f"Error while handling a metric file: {e}", file=sys.stderr)
-#        print_exception(e, file=sys.stderr)
+        #        print_exception(e, file=sys.stderr)
         print_exc(file=sys.stderr)
         sys.exit(1)
     except ValueError as e:
         print(f"Error parsing file: {e}", file=sys.stderr)
-#        print_exception(e, file=sys.stderr)
+        #        print_exception(e, file=sys.stderr)
         print_exc(file=sys.stderr)
         sys.exit(1)
     except KeyboardInterrupt:

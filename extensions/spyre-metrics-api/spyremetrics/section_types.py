@@ -22,10 +22,10 @@ from .section_type_defs import (
 # Global parameters
 """List of pre-defined config file paths"""
 CONFIG_FILE_LIST = [
-    '~/.section_types.json',
-    '~/.local/etc/section_types.json',
-    str(Path(__file__).parent/'section_types.json'),
-    '/opt/ibm/spyre/runtime/etc/section_types.json',
+    "~/.section_types.json",
+    "~/.local/etc/section_types.json",
+    str(Path(__file__).parent / "section_types.json"),
+    "/opt/ibm/spyre/runtime/etc/section_types.json",
 ]
 
 """Control whether to ignore json load error"""
@@ -37,11 +37,15 @@ Config file version
 """
 _config_version: tuple[int, int, int, int] = (0, 0, 0, 0)
 
+
 def config_version() -> tuple[int, int, int, int]:
     return _config_version
 
+
 ### Config JSON loader
-def _load_section_types(config_files: list[str], env_name: str, cls_list: list[type]) -> None:
+def _load_section_types(
+    config_files: list[str], env_name: str, cls_list: list[type]
+) -> None:
     """Load config json file to set up all supported data types in a metric file"""
 
     # Add user config file to the list
@@ -53,18 +57,21 @@ def _load_section_types(config_files: list[str], env_name: str, cls_list: list[t
     abs_path = None
     # Read config files
     for path_str in config_files:
-#        print(f"Checking {path_str}", file=sys.stderr)
+        #        print(f"Checking {path_str}", file=sys.stderr)
         abs_path = Path(path_str).expanduser().resolve()
         if not abs_path.exists():
             abs_path = None
             continue
         with abs_path.open() as f:
             try:
-#                print(f"Load {path_str}", file=sys.stderr)
+                #                print(f"Load {path_str}", file=sys.stderr)
                 _raw_config_map = json.load(f)
-                break # Use the first available config file
+                break  # Use the first available config file
             except json.JSONDecodeError as e:
-                print(f"ERROR: Failed to load secton type config file: {str(abs_path)}\n  MSG: {e.msg}", file=sys.stderr)
+                print(
+                    f"ERROR: Failed to load secton type config file: {str(abs_path)}\n  MSG: {e.msg}",
+                    file=sys.stderr,
+                )
                 if ignore_json_error:
                     print("Warning: This file is ignored, and go on", file=sys.stderr)
                     continue
@@ -78,43 +85,44 @@ def _load_section_types(config_files: list[str], env_name: str, cls_list: list[t
         raise ValueError(msg)
 
     # Extract config version
-    if 'version' in _raw_config_map:
+    if "version" in _raw_config_map:
         global _config_version
-        _config_version = tuple(_raw_config_map['version'].split('.'))
+        _config_version = tuple(_raw_config_map["version"].split("."))
 
     # Convert to data classes
     global _section_type_map, _metric_type_map, _value_type_map, _summarizer_map
     for cls in cls_list:
-        if not hasattr(cls, 'JSON_KEY'):
+        if not hasattr(cls, "JSON_KEY"):
             raise ValueError(f"{str(cls)} does not have JSON_KEY attribute")
 
         category = cls.JSON_KEY
         entries = _raw_config_map.get(category, [])
         if not entries:
-            #print(f"Warning: \"{category}\" key is empty in section type json", file=sys.stderr)  # For debug
+            # print(f"Warning: \"{category}\" key is empty in section type json", file=sys.stderr)  # For debug
             continue
 
-        map = { int(x['id'], 0): cls(**x) for x in entries }
+        map = {int(x["id"], 0): cls(**x) for x in entries}
 
-        if not hasattr(cls, 'MAP_NAME'):
+        if not hasattr(cls, "MAP_NAME"):
             raise ValueError(f"{str(cls)} does not have MAP_NAME attribute")
 
         match cls.MAP_NAME:
             case "_section_type_map":
                 SectionType.add_id_map(map)
-                SectionType.add_name_map({ e.name: e for e in map.values() })
+                SectionType.add_name_map({e.name: e for e in map.values()})
 
             case "_value_type_map":
                 ValueType.add_id_map(map)
-                ValueType.add_name_map({ e.name: e for e in map.values() })
+                ValueType.add_name_map({e.name: e for e in map.values()})
 
             case "_summarizer_map":
                 SummarizerType.add_id_map(map)
-                SummarizerType.add_name_map({ e.name: e for e in map.values() })
+                SummarizerType.add_name_map({e.name: e for e in map.values()})
 
             case "_metric_type_map":
                 MetricDataType.add_id_map(map)
-                MetricDataType.add_name_map({ e.name: e for e in map.values() })
+                MetricDataType.add_name_map({e.name: e for e in map.values()})
+
 
 """
 Try to import generated map of SectionType etc. objects
@@ -124,26 +132,41 @@ try:
         VERSION,
         ## Singleton objetcts are added in the global map in generated_section_types.py
     )
+
     _config_version = VERSION
     # print("Loaded generated_section_types.py", file=sys.stderr)  # For debug
 except (ImportError, ValueError) as e:
     ## For debug
-    print("Debug: Failed to import pre-converted config file. Fall back to load from JSON file", file=sys.stderr)
+    print(
+        "Debug: Failed to import pre-converted config file. Fall back to load from JSON file",
+        file=sys.stderr,
+    )
 
     if e is ValueError:
-        print("Warning: Error occured while loading the pre-converted config file.", file=sys.stderr)
+        print(
+            "Warning: Error occured while loading the pre-converted config file.",
+            file=sys.stderr,
+        )
         ## print_tb(e.__traceback__, file=sys.stderr)
         print_exception(e, file=sys.stderr)
 
     ## Load the config json file into a global map, so that SectionType etc. objects can be singleton
     try:
-        _load_section_types(CONFIG_FILE_LIST, "SECTION_TYPE_CONFIG_FILE",
-                            [ SectionType, ValueType, SummarizerType, MetricDataType ])   # MetricDataType must be the last
+        _load_section_types(
+            CONFIG_FILE_LIST,
+            "SECTION_TYPE_CONFIG_FILE",
+            [SectionType, ValueType, SummarizerType, MetricDataType],
+        )  # MetricDataType must be the last
         # print("Loaded type definitions from JSON config", file=sys.stderr)  # For debug
     except ValueError as e:
-        print(f"ERROR: Failed to load definitions of SectionType, etc.\n{str(e)}", file=sys.stderr)
+        print(
+            f"ERROR: Failed to load definitions of SectionType, etc.\n{str(e)}",
+            file=sys.stderr,
+        )
         raise ImportError from e
     except Exception as e:
-        raise ImportError('Unexpected error while loading definitions of SectionType, etc.') from e
+        raise ImportError(
+            "Unexpected error while loading definitions of SectionType, etc."
+        ) from e
 
 # print("Loaded by section_types.py", file=sys.stderr)  # For debug
