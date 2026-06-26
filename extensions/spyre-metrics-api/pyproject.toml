@@ -1,0 +1,101 @@
+[build-system]
+requires = [
+    # any change here should be reflected in the build dependencies below
+    "build",
+    "setuptools>=70.1.0,<80.0",
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spyremetrics"
+authors = [
+    {name = "Torch-Spyre Extension Teams"}
+]
+description = "Python library for reading Spyre metric files"
+readme = "README.md"
+dependencies = [
+    "numpy",
+    "psutil~=7.2.1"
+]
+requires-python = ">=3.12"
+dynamic = ["version"]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = [ "IBM Spyre", "performance", "metrics" ]
+classifiers=[
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+#    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Monitoring",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/torch-spyre/extensions/spyre-metrics-api"
+#Issues   = "https://github.com/torch-spyre/torch-spyre/issues?q=is%3Aissue%20state%3Aopen%20(spyre-metrics-api%20OR%20spyremetrics)"
+#Documentation = "https://torch-spyre.readthedocs.io/en/latest/api/spyremetrics.html"
+
+[project.optional-dependencies]
+build = [ # no-isolation build 
+    # any change here should be reflected in the build system above
+    "build",
+    "setuptools>=70.1.0,<80.0",
+    "wheel"
+]
+test = [
+    "pytest~=9.0.0",
+    "pydantic",             # needed by test framework to support pydantic models for config
+    "pytest-xdist",         # -n1 worker isolation for segfault resilience
+    "transformers~=4.57.1"
+]
+lint = [
+    "mypy~=1.13.0",
+    "pre-commit~=4.5.0",
+    "types-PyYAML~=6.0.12.20250915",
+    "uv~=0.10.0",
+]
+
+[tool.setuptools]
+package-dir = { spyremetrics = "spyremetrics" }
+
+[tool.setuptools.packages.find]
+include = ["spyremetrics"]
+
+[tool.setuptools.dynamic]
+version = {attr = "spyremetrics.__version__"}  # any module attribute compatible with ast.literal_eval
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+ignore = [
+    "E701", # Multiple statements on one line (colon)
+    "E702", # Multiple statements on one line (semicolon)
+    "F401", # Imported but unused
+]
+
+[tool.mypy]
+ignore_missing_imports = true
+exclude=["example.py"]
+
+# [[tool.mypy.overrides]]
+# module = ["torch_spyre._inductor.*"]
+# disable_error_code = ["attr-defined"]
+
+[tool.uv]
+package = true
+required-version = ">=0.9.0"
+index-strategy = "unsafe-best-match"
+override-dependencies = ['setuptools>=70.1.0,<80.0']
+
+[[tool.uv.index]]
+name = "spyremetrics"
+url = "https://test.pypi.org/project/spyremetrics/"
+explicit = true
+
+[tool.uv.pip]
+universal = true
