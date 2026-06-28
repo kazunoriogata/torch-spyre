@@ -225,7 +225,18 @@ def _single_arg_op_layout(
 
     if isinstance(data, Reduction):
         x_dev_coords = device_coordinates(stl, dep, None)
+        out_coords = host_coordinates(output, output_dep, None)
         x_stick_expr = x_dev_coords[-1]
+
+        # Try to preserve input layout
+        out_stl = _output_stl_from_stick_expr(
+            x_stick_expr, output, output_dep, c_size, c_stride
+        )
+        if out_stl is not None:
+            return [out_stl]
+
+        # Try alternative layouts when input layout is not supported
+        in_coords = host_coordinates(in_layout, dep, None)
         reduction_var = next(
             iter(dep.index.free_symbols - output_dep.index.free_symbols), None
         )
@@ -606,11 +617,13 @@ def _multi_arg_pointwise_layouts(
     """
 
     ind_names, _, ind_sizes = indirect_info_from_op(op)
+    # Collect all unique non-zero stick expressions from input layouts
     stick_exprs = {
         device_coordinates(stl, arg.dep, ind_sizes)[-1]
         for arg in args
         for stl in arg.layouts
         if arg.dep.name not in ind_names
+        and (stick_expr := device_coordinates(stl, arg.dep, ind_sizes)[-1]) != 0
     }
 
     # If the indexing and device element size are identical
