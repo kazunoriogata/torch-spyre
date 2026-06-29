@@ -508,20 +508,8 @@ def generate_sdsc(
             # be registered. Offset by n_dim_syms because dim symbols occupy the first
             # n_dim_syms slots in this SDSC's range of the shared counter.
             base_sym_idx = symbol_id_offset + n_dim_syms + len(local_symbols)
-            # Build per-level strides: for each level, collect the symbols at that
-            # level that tile this tensor (i.e. appear in tensor.strides).
-            per_level_strides: list[dict] = []
-            any_tiled = False
-            for level_syms in tiled_symbols:
-                tensor_tiled_at_level = [s for s in level_syms if s in tensor.strides]
-                strides_for_level: dict = {}
-                for s in tensor_tiled_at_level:
-                    strides_for_level[s] = _tiled_byte_stride(
-                        tensor, s, sdsc_spec.iteration_space
-                    )
-                    any_tiled = True
-                per_level_strides.append(strides_for_level)
-            if not any_tiled:
+            tensor_tiled = [s for s in tiled_symbols if s in tensor.strides]
+            if not tensor_tiled:
                 # Non-tiled HBM: register per-core addresses.
                 for c in range(sdsc_spec.num_cores):
                     addr = tensor.start_address + core_idx_to_slice_offset(

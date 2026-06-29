@@ -497,6 +497,28 @@ def align_tensors(
     # Coordinate *expressions* remain symbolic (they reference loop variable
     # Symbols, not range values).
 
+    # Save original (possibly symbolic) range expressions before concretizing.
+    # The algorithm below requires concrete ints for sorting and integer division,
+    # but we must propagate symbolic expressions forward so downstream passes
+    # (work_division, SDSC codegen) see the symbols to extract fields, not size_hints.
+    orig_ranges = {var: val[0] for var, val in iteration_space.items()}
+    # local import: pass_utils imports compute_coordinates/matching_dim from
+    # this module, so importing at module scope would create a cycle.
+    from .pass_utils import finite_upper_or_none
+
+    def _bounded_or_hint(expr, hint):
+        """Return ``expr`` unless it's an unbounded symbolic expression.
+
+        Auto-dynamic symbols (Dynamo promoting an int on retrace, with no
+        finite max and are not symbolic dims ) carry no bound downstream passes
+        (work_division, SDSC codegen) can size buffers/loops with. Fall back to
+        the concretized ``hint`` instead of propagating an unbounded symbol.
+        """
+        if hasattr(expr, "free_symbols") and expr.free_symbols:
+            if finite_upper_or_none(expr) is None:
+                return hint
+        return expr
+
     repeat_info: dict = getattr(V.graph, "_repeat_info", {})
 
     var_ranges = {
@@ -605,6 +627,14 @@ def align_tensors(
         else:
             # no splits keep existing var, range, and work division
             # may happen with a single stick since the stick size is omitted
+            # downstream passes receive the symbolic expression, not the concretized
+            # hint -- unless the symbol is unbounded, see _bounded_or_hint.
+            # Synthetic vars (z0, z1, …) are introduced by normalize_coordinates
+            # for restored size-1 dims and are not in orig_ranges; fall back to
+            # the concretized value (always 1) for those.
+            new_var_ranges[var] = _bounded_or_hint(
+                orig_ranges.get(var, var_ranges[var]), var_ranges[var]
+            )
             # var can be a loop var or an indirect symbol
             if var in var_ranges:
                 new_var_ranges[var] = var_ranges[var]

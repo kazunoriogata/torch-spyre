@@ -94,7 +94,7 @@ class OpSpec:
     iteration_space: dict[Symbol, tuple[Expr, int]]
     args: Sequence[TensorArg]
     op_info: dict[str, Any]
-    tiled_symbols: list[list[Symbol]] = dataclasses.field(default_factory=list)
+    tiled_symbols: list[Symbol] = dataclasses.field(default_factory=list)
     # Maps PyTorch symbol name (e.g. 's97') -> (max, granularity) bounds.
     # Populated by compute_symbolic_bounds during
     # create_op_spec; empty for concrete dims.

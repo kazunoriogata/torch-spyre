@@ -655,6 +655,24 @@ class SpyreKernel(Kernel[CSEVariable]):
             if bounds is not None:
                 symbolic_dim_bounds[str(size_expr)] = bounds
 
+        # Collect (max, granularity) bounds for any symbolic iteration-space
+        # dims. These are passed through OpSpec so SDSC codegen can emit
+        # symbolicDimInfo_ without needing the live ShapeEnv (which is gone
+        # during the codegen phase).
+        symbolic_dim_bounds: dict[str, tuple[int, int]] = {}
+        for _, (size_expr, _) in it_space_extended.items():
+            if not (hasattr(size_expr, "free_symbols") and size_expr.free_symbols):
+                continue
+            if finite_upper_or_none(size_expr) is None:
+                logger.debug(
+                    f"[work_division/symbolic] skipping auto-dynamic symbol "
+                    f"{size_expr}; use mark_dynamic(max=...) to enable symbolic planning"
+                )
+                continue
+            bounds = compute_symbolic_bounds(size_expr)
+            if bounds is not None:
+                symbolic_dim_bounds[str(size_expr)] = bounds
+
         return OpSpec(
             op,
             is_reduction,
