@@ -73,7 +73,7 @@ from .constants import BATCH_MATMUL_OP
 from .errors import Unsupported
 from .logging_utils import get_inductor_logger
 from .loop_info import CoarseTileInfo
-from .propagate_hints import DimHint, get_op_hints
+from .propagate_hints import DimHint
 from .pass_utils import op_out_coords
 from .span_overflow_hint_analysis import plan_span_overflow_tile
 from .ir import FixedTiledLayout
