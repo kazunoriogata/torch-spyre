@@ -47,7 +47,8 @@ PYTHON_COPYRIGHT = """\
 # See the License for the specific language governing permissions and
 # limitations under the License."""
 
-CPP_COPYRIGHT = PYTHON_COPYRIGHT.replace('#', '//')
+CPP_COPYRIGHT = PYTHON_COPYRIGHT.replace("#", "//")
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
