@@ -4,7 +4,7 @@
 [project]
 name = "torch_spyre.extensions"
 authors = [
-    {name = "Torch-Spyre Extension Teams"}
+    {name = "Torch-Spyre Authors"}
 ]
 description = "Torch-Spyre extensions"
 version = "0.0.1"

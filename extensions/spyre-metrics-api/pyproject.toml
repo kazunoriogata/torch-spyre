@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "spyremetrics"
 authors = [
-    {name = "Torch-Spyre Extension Teams"}
+    {name = "Torch-Spyre Authors"}
 ]
 description = "Python library for reading Spyre metric files"
 readme = "README.md"
