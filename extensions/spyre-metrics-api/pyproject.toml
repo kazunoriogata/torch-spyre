@@ -68,6 +68,10 @@ include = ["spyremetrics"]
 version = {attr = "spyremetrics.__version__"}  # any module attribute compatible with ast.literal_eval
 
 [tool.ruff]
+# NOTE: Configs of tool.ruff this tables are only for local checking,
+# running "uvx ruff" in this directory.
+# Pre-commit checks exclude all sub-projects under extensions/ because of
+# "exclude=" settings in the top-level pyproject.toml.
 line-length = 88
 target-version = "py312"
 
@@ -79,6 +83,10 @@ ignore = [
 ]
 
 [tool.mypy]
+# NOTE: Configs of tool.ruff this tables are only for local checking,
+# running "uvx mypy" in this directory.
+# Pre-commit checks exclude all sub-projects under extensions/ because of
+# "exclude=" settings in the top-level pyproject.toml.
 ignore_missing_imports = true
 exclude=["example.py"]
 
