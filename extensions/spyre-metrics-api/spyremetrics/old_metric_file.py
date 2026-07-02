@@ -25,7 +25,7 @@ from .section_types import MetricDataType
 
 ## Add pre-defined import path, and import APIs from libaiusmi.so
 sys.path.insert(0, str(Path("~/.local/lib").expanduser()))
-sys.path += ["/opt/ibm/sys/spyre/aiu-monitor/lib", "/opt/ibm/sys/spyre/runtime/lib"]
+sys.path += ["/opt/ibm/spyre/aiu-monitor/lib", "/opt/ibm/spyre/runtime/lib"]
 
 try:
     from libaiumonitor import DcrHelper, Snapshot
