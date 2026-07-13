@@ -61,7 +61,7 @@ def _load_section_types(
 
     # Add user config file to the list
     config_env = os.environ.get(env_name)
-    if config_env and Path(config_env).exists:
+    if config_env and Path(config_env).exists():
         config_files.append(config_env)
 
     _raw_config_map = {}  # Temporary json object, but define as a global variable for debugging
@@ -97,8 +97,16 @@ def _load_section_types(
 
     # Extract config version
     if "version" in _raw_config_map:
+        vers: list[int] = [0] * 4
+        for i, elm in enumerate(_raw_config_map["version"].split(".")):
+            if i >= 4:
+                break
+            if elm and elm.isdigit():
+                vers[i] = int(elm)
+            # Leave vers[i] to be 0 if the element is not a decimal string
+
         global _config_version
-        _config_version = tuple(_raw_config_map["version"].split("."))
+        _config_version = tuple(vers)  # len(vers) is always 4
 
     # Convert to data classes
     global _section_type_map, _metric_type_map, _value_type_map, _summarizer_map
@@ -153,7 +161,7 @@ except (ImportError, ValueError) as e:
         file=sys.stderr,
     )
 
-    if e is ValueError:
+    if isinstance(e, ValueError):
         print(
             "Warning: Error occured while loading the pre-converted config file.",
             file=sys.stderr,

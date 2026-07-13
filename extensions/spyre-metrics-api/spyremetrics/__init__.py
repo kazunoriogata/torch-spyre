@@ -44,5 +44,3 @@ __all__ = [
     "ValueType",
     "config_version",
 ]
-
-# Made with Bob

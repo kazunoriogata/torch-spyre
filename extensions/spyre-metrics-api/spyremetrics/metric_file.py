@@ -62,7 +62,7 @@ try:
         MetricDataType,
     )
 except ImportError as e:
-    print(f"Failed to import section_types module: {e}", sys.stderr)
+    print(f"Failed to import section_types module: {e}", file=sys.stderr)
     ## Notify error to the caller as a RuntimeError
     raise RuntimeError from e
 
@@ -451,7 +451,7 @@ class FileHeader:
         if any([magic[i] != ord(ch) for i, ch in enumerate(MAGIC_BYTES)]):
             # If magic bytes is not "AiuM", check if it is still updating header by comparing the magic byte with "!"
             if any([magic[i] != ord(ch) for i, ch in enumerate(MAGIC_UPDATING)]):
-                print(f"ERROR: Unexpected magic bytes: {magic}", sys.stderr)
+                print(f"ERROR: Unexpected magic bytes: {magic}", file=sys.stderr)
             return FileHeader.null_file_header
 
         version = [
@@ -463,7 +463,7 @@ class FileHeader:
         ):
             print(
                 f"ERROR: Unsupported metric file version: {'.'.join([str(x) for x in version])}",
-                sys.stderr,
+                file=sys.stderr,
             )
             return FileHeader.null_file_header
 
@@ -623,7 +623,7 @@ class MetricFile:
         if file_size % 8 != 0:
             print(
                 f"ERROR: Metric file size is not a multiple of sizeof(uint64_t): {self._filepath}",
-                sys.stderr,
+                file=sys.stderr,
             )
             self._file_state = MetricFile.State.Error
             return MetricFile._empty_mmap
@@ -632,7 +632,7 @@ class MetricFile:
             print(
                 f"ERROR: Metric file size is shorter than minimum required size={FILE_HEADER_MIN_SIZE}: "
                 f"{self._filepath}",
-                sys.stderr,
+                file=sys.stderr,
             )
             self._file_state = MetricFile.State.Error
             return MetricFile._empty_mmap
@@ -658,16 +658,14 @@ class MetricFile:
         if self._file_state <= MetricFile.State.Stale:  # No metric file or a stale file
             return False  # memmap failed
 
-        self._file_header: FileHeader = FileHeader.try_parse_header(
-            self._filepath, self._mmap
-        )
+        self._file_header = FileHeader.try_parse_header(self._filepath, self._mmap)
         if self._file_header == FileHeader.null_file_header:
             self._file_state = MetricFile.State.Stale
             self.close()
             return False  # File is being updated
 
-        self._sections: list[MetricSection] = self._load_sections()
-        self._metric_fetchers: list[MetricFetcher] = self._collect_fetchers()
+        self._sections = self._load_sections()
+        self._metric_fetchers = self._collect_fetchers()
         return True
 
     def _load_sections(self) -> list[MetricSection]:
@@ -790,7 +788,7 @@ class MetricFile:
         self._ensure_metric_file()
 
         if self._file_state <= MetricFile.State.Error:
-            print(f"ERROR: Invalid metric file: {self._filepath}", sys.stderr)
+            print(f"ERROR: Invalid metric file: {self._filepath}", file=sys.stderr)
             return  # Finish generator with not data
 
         if self._file_state <= MetricFile.State.Stale:
@@ -809,7 +807,7 @@ class MetricFile:
                 yield from read_old_metrics(self._filepath)
             except RuntimeError:  # as e:
                 failedImportForOldFormat = True
-                # print(f"ERROR: Failed to import read_old_metrics(): {str(e)}", sys.stderr)
+                # print(f"ERROR: Failed to import read_old_metrics(): {str(e)}", file=sys.stderr)
                 self._file_state = MetricFile.State.Error
                 return
 
@@ -900,13 +898,14 @@ class MetricFile:
 
     def __str__(self) -> str:
         return (
-            f"{self.__class__.__name__}: file={self._filepath}, new-format={self._file_header.is_new_format}, "
+            f"{self.__class__.__name__}: file={self._filepath}, old-format={self._file_header.is_old_format}, "
+            f"skip-old-format={self._file_header.skip_old_header}, "
             f"version={'.'.join((str(v) for v in self._file_header.version))}, state={self._file_state.name}, "
             f"nsections={self.nsections}\n"
             f"    header-size={self._file_header.header_size}, section-table={self._file_header.section_table}\n"
             f"    filters={self._filters}\n"
             f"    mmap={self._mmap.dtype} x {self._mmap.size} = {self._mmap.nbytes} bytes, {self._mmap.filename}\n"
-            f"    acrive-fetchers={', '.join((str(f) for f in self._metric_fetchers))}\n"
+            f"    active-fetchers={', '.join((str(f) for f in self._metric_fetchers))}\n"
             f"    sections:\n{'\n'.join((str(s) for s in self._sections))}"
         )
 
@@ -926,6 +925,3 @@ class MetricFile:
     def __del__(self) -> None:
         """Destructor to ensure memmap is cleaned up."""
         self.close()
-
-
-# Made with Bob

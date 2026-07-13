@@ -16,7 +16,7 @@ description = "Python library for reading Spyre metric files"
 readme = "README.md"
 dependencies = [
     "numpy",
-    "psutil~=7.2.1"
+    "psutil>=5.9.6"
 ]
 requires-python = ">=3.12"
 dynamic = ["version"]
@@ -34,7 +34,7 @@ classifiers=[
 ]
 
 [project.urls]
-Homepage = "https://github.com/torch-spyre/extensions/spyre-metrics-api"
+Homepage = "https://github.com/torch-spyre/torch-spyre/extensions/spyre-metrics-api"
 #Issues   = "https://github.com/torch-spyre/torch-spyre/issues?q=is%3Aissue%20state%3Aopen%20(spyre-metrics-api%20OR%20spyremetrics)"
 #Documentation = "https://torch-spyre.readthedocs.io/en/latest/api/spyremetrics.html"
 
@@ -102,8 +102,7 @@ override-dependencies = ['setuptools>=70.1.0,<80.0']
 
 [[tool.uv.index]]
 name = "spyremetrics"
-url = "https://test.pypi.org/project/spyremetrics/"
-explicit = true
+url = "https://test.pypi.org/simple/"
 
 [tool.uv.pip]
 universal = true
